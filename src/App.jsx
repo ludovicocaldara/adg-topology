@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState, useMemo, useEffect } from 'react';
 import {
   ReactFlow,
   MiniMap,
@@ -14,6 +14,19 @@ import DatabaseNode from './components/DatabaseNode';
 import LadEdge from './components/LadEdge';
 import PropertyPanel from './components/PropertyPanel';
 import ActionToolbox from './components/ActionToolbox';
+
+// Storage helpers
+const setStorage = (name, value) => {
+  localStorage.setItem(name, value);
+};
+
+const getStorage = (name) => {
+  return localStorage.getItem(name);
+};
+
+const deleteStorage = (name) => {
+  localStorage.removeItem(name);
+};
 
 const nodeTypes = {
   database: DatabaseNode,
@@ -40,11 +53,43 @@ const initialNodes = [
 
 const initialEdges = [];
 
+const getInitialNodes = () => {
+  const saved = getStorage('adgTopologyData');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      if (data.nodes && Array.isArray(data.nodes)) return data.nodes;
+    } catch (err) {
+      console.error('Failed to load nodes from storage:', err);
+    }
+  }
+  return initialNodes;
+};
+
+const getInitialEdges = () => {
+  const saved = getStorage('adgTopologyData');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      if (data.edges && Array.isArray(data.edges)) return data.edges;
+    } catch (err) {
+      console.error('Failed to load edges from storage:', err);
+    }
+  }
+  return initialEdges;
+};
+
 function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(getInitialNodes());
+  const [edges, setEdges, onEdgesChange] = useEdgesState(getInitialEdges());
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+
+  // Save to storage when nodes or edges change
+  useEffect(() => {
+    const data = { nodes, edges };
+    setStorage('adgTopologyData', JSON.stringify(data));
+  }, [nodes, edges]);
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
   const selectedEdge = edges.find(e => e.id === selectedEdgeId);
@@ -202,6 +247,14 @@ function App() {
     setEdges(data.edges || []);
   }, [setNodes, setEdges]);
 
+  const onClearAll = useCallback(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    deleteStorage('adgTopologyData');
+  }, []);
+
   const dgmgrlStatements = useMemo(() => {
     return Object.entries(allConnections).map(([sourceId, conns]) => {
       const source = nodes.find(n => n.id === sourceId);
@@ -226,6 +279,7 @@ function App() {
         selectedIsStandby={selectedIsStandby}
         onExport={onExport}
         onImport={onImport}
+        onClearAll={onClearAll}
         style={{ width: '100%', height: '60px', borderBottom: '1px solid var(--redwood-black)' }}
       />
       <div style={{ width: '100vw', height: '100vh' , position: 'relative' }}>
