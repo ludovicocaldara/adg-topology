@@ -1,0 +1,60 @@
+I want to create a frontend-only application using React and React Flow.
+
+The application uses React Flow to design Oracle Data Guard topologies visually.
+
+In the application, there are these colors:
+
+* The primary database is a box with a #B84F3C background. It can be aliased as redwood-red.
+* The standby databases have #375865 background. it can be aliased as redwood-blue.
+* the foreground (connectors, text) is #312D2B. it can be aliased as redwood-black.
+* the background is #FCFBFA. It can be aliased as redwood-white. this is also for text on color if it provides higher contrast than the regular foreground color. 
+* a color #8A8580 for objects type RECOVERY_APPLIANCE and FAR_SYNC. call it redwood-grey.
+* the font is Oracle Sans. If not available, then Haas Unica.
+
+There are four types of objects that can be added/configured.
+
+* Databases: they can be either primary or standby. You can tell them apart with the color, but they also contain a label  Role: PRIMARY|PHYSICAL_STANDBY in small font. They have the following properties that can be changed in the properties panel:
+  * DB_UNIQUE_NAME
+  The DB_UNIQUE_NAME can also be changed by double-clicking on it.
+* Far Sync and recovery appliance: they are special type of databases similar to standby databases but using redwood-grey.
+  Also Far sync and recovery appliances have a DB_UNIQUE_NAME that can be changed.
+
+* LADs: LAD is the short for log archive destination. They are connections representing the redo transport that can be created by dragging the anchor points of the database box from one database (or other non-connection object) to another. Connections can be removed by selecting them and clicking delete.
+  * LADs have the property LogXptMode that can be: SYNC, ASYNC, or FASTSYNC. They also have property Priority from 1 to 8 (default 1). These properties are shown in the property panel, as well as in small font next to the connection.
+  Conceptually, the LADs "belong" to the source, and reference the destination as a property "destination" with the value of the destination's DB_UNIQUE_NAME.
+
+The objects have these characteristics:
+* RECOVERY_APPLIANCE can only receive redo. It cannot send it. Therefore, no connections can be created with that as a source.
+* Far sync can send and receive. It can never become a primary database.
+* Databases can send and receive. A standby database can become a primary by selecting the primary in the action menu (see below).
+* There can be only one primary database at the time. So if another primary is selected, the previous one becomes a standby database.
+* primary databases cannot receive redo: they can't be destination of a LAD.
+* databases, far sync, recovery appliances, and connection can be removed by selecting and clicking delete. Also the primary database can be deleted but in that case, another primary database is selected (in order of creation time) 
+* If a standby database, or far sync or recovery appliance does not receive redo from any database, a warning is shown on it (does not receive redo)
+* If any object receives from two sources, an error is shown (cannot receive from multiple sources)
+
+
+This is the initial status of the diagram:
+* The application starts with a canvas containing a primary database and a standby database.
+* By default, the primary sends redo to the standby. The redo transport is shown via a directed arrow between the boxes.
+
+On the right side of the canvas, there is an action toolbox.
+On the left side of the canvas, there is a properties toolbox which is only displayed when an object is selected.
+
+These are the actions that are possible (available on the action menu):
+* Add new standby databases (via an action button (+) add standby)
+  * Any new standby database is connected directly to the primary
+* Show configuration when the primary is the selected database (this action is greyed out if it's not a standby database being selected)
+
+In the background, you maintain an array of information of the connections between the different objects, for each primary database. In this way, when a new primary database is selected, you can show the information that you have about it.
+This implies two things:
+* when a new standby is added, it's implicitly added as a direct destination of the primary.
+* when another primary is selected, the connections are removed and added to show the new redo topology for the newly selected primary. If connections do not exist for some standby databases, show the warning that they are not receiving redo so the user can draw the new connections.
+
+
+In the property panel, users can see the properties of the selected object. The LogXptMode for the LADs can be selected via a drop-down menu. Property priority is enforced to be between 1 and 8.
+
+The information about objects and connections can be exported/imported as a JSON document.
+At the bottom of the page, you maintain a series of DGMGRL statements "EDIT DATABASE|FAR_SYNC|RECOVERY_APPLIANCE SET PROPERTY RedoRoutes = '{redoroutes}'" where {redoroutes} are the redo routes as documented for the Data Guard broker. The user can use them to reproduce the configuration for their real databases as it has been desined graphically in the application.
+
+Create the project outline, the code, a README.md and a file with the instructions to set up everything.
