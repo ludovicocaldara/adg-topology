@@ -25,10 +25,11 @@ const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge,
   }
 
   if (selectedEdge) {
-    const { logXptMode, priority } = selectedEdge.data;
+    const { logXptMode, priority, whenPrimaryIs } = selectedEdge.data;
     return (
       <div style={{ ...combinedStyle, background: 'var(--redwood-white)' }}>
         <h3>Log Archive Dest Properties</h3>
+        <p><label style={{ width: '100%', marginBottom: '10px'}} >Valid when Primary is: {whenPrimaryIs}</label></p>
         <label>LogXptMode</label>
         <select
           value={logXptMode}

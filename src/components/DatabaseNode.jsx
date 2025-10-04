@@ -8,7 +8,7 @@ const DatabaseNode = ({ data, selected }) => {
   if (type === 'FAR_SYNC' || type === 'RECOVERY_APPLIANCE') bgColor = 'var(--redwood-grey)';
 
   return (
-    <div
+    <div 
       style={{
         padding: '15px',
         borderRadius: '5px',
