@@ -169,12 +169,14 @@ function App() {
       if (sourceNode.data.type === 'RECOVERY_APPLIANCE') return;
       // Prevent connections to primary
       if (targetNode.data.role === 'PRIMARY') return;
-      const newEdge = {
-        ...params,
-        type: 'lad',
-        data: { logXptMode: 'ASYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName },
-      };
-      setEdges((eds) => addEdge(newEdge, eds));
+    const newEdge = {
+      ...params,
+      id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      type: 'lad',
+      data: { logXptMode: 'ASYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName },
+    };
+    console.log('New edge:', newEdge);
+      setEdges((eds) => [...eds, newEdge]);
     },
     [nodes, setEdges]
   );
@@ -309,6 +311,7 @@ function App() {
             onEdgesDelete={onEdgesDelete}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            connectionMode="loose"
             fitView
           >
             <Controls />
