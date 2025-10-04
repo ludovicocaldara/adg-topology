@@ -53,6 +53,7 @@ const initialNodes = [
 
 const initialEdges = [];
 
+// Load from storage if available
 const getInitialNodes = () => {
   const saved = getStorage('adgTopologyData');
   if (saved) {
@@ -66,6 +67,7 @@ const getInitialNodes = () => {
   return initialNodes;
 };
 
+// Load from storage if available
 const getInitialEdges = () => {
   const saved = getStorage('adgTopologyData');
   if (saved) {
@@ -96,17 +98,11 @@ function App() {
   const currentPrimary = nodes.find(n => n.data.role === 'PRIMARY');
   const selectedIsStandby = selectedNode && selectedNode.data.role === 'PHYSICAL_STANDBY';
 
+  // return only edges relevant to the current primary vor visualization
   const visibleEdges = useMemo(() => edges.filter(e => e.data.whenPrimaryIs === currentPrimary?.data.dbUniqueName), [edges, currentPrimary]);
 
-  const primaryConnections = useMemo(() => {
-    const conns = {};
-    visibleEdges.forEach(edge => {
-      if (!conns[edge.source]) conns[edge.source] = [];
-      conns[edge.source].push({ target: edge.target, logXptMode: edge.data.logXptMode, priority: edge.data.priority });
-    });
-    return conns;
-  }, [visibleEdges]);
-
+  // Map of source node ID to array of { target, whenPrimaryIs, priority }
+  // we use this to generate DGMGRL statements
   const allConnections = useMemo(() => {
     const conns = {};
     edges.forEach(edge => {
@@ -116,6 +112,10 @@ function App() {
     return conns;
   }, [edges]);
 
+  // Add warnings to nodes if they are misconfigured
+  // e.g. a standby that does not receive from primary
+  // or a standby that receives from multiple sources
+  // Warnings are shown in the node component
   const nodesWithWarnings = useMemo(() => {
     return nodes.map(node => {
       const incoming = visibleEdges.filter(e => e.target === node.id);
@@ -134,31 +134,45 @@ function App() {
   const onNodeClick = useCallback((event, node) => {
     setSelectedNodeId(node.id);
     setSelectedEdgeId(null);
+    console.log('Node clicked:', node);
   }, []);
 
   const onEdgeClick = useCallback((event, edge) => {
     setSelectedEdgeId(edge.id);
     setSelectedNodeId(null);
+    console.log('Edge clicked:', edge);
   }, []);
 
+  // Update node data (e.g. role, dbUniqueName)
+  // updates is an object with the fields to update
+  // e.g. { role: 'PRIMARY' }
+  // We merge the updates into the existing data
+  // and update the node in state
   const onUpdateNode = useCallback((id, updates) => {
     setNodes(nds => nds.map(n => n.id === id ? { ...n, data: { ...n.data, ...updates } } : n));
   }, [setNodes]);
 
+  // Similar for edges
   const onUpdateEdge = useCallback((id, updates) => {
     setEdges(eds => eds.map(e => e.id === id ? { ...e, data: { ...e.data, ...updates } } : e));
   }, [setEdges]);
 
   const onConnect = useCallback(
     (params) => {
-      const sourceNode = nodes.find(n => n.id === params.source);
-      if (sourceNode.data.type === 'RECOVERY_APPLIANCE') return;
+      console.log('Connecting:', params);
       const currentPrimary = nodes.find(n => n.data.role === 'PRIMARY');
       const targetNode = nodes.find(n => n.id === params.target);
+      // Prevent self-connections and connections
+      if (params.source === params.target) return;
+      const sourceNode = nodes.find(n => n.id === params.source);
+      // Prevent connections from recovery appliance
+      if (sourceNode.data.type === 'RECOVERY_APPLIANCE') return;
+      // Prevent connections to primary
+      if (targetNode.data.role === 'PRIMARY') return;
       const newEdge = {
         ...params,
         type: 'lad',
-        data: { logXptMode: 'SYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName },
+        data: { logXptMode: 'ASYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName },
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
