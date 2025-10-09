@@ -312,6 +312,10 @@ function App() {
     setShowRedoRoutesModal(true);
   }, []);
 
+  // Generate DGMGRL statements for configuring RedoRoutes on each database
+  // RedoRoutes define how a database sends redo logs based on which database is currently the primary
+  // The format is: EDIT <TYPE> <DB_NAME> SET PROPERTY RedoRoutes = '(PRIMARY1: routes1)(PRIMARY2: routes2)...'
+  // Where routes are grouped by chains: alternates are linked to higher priority routes
   const dgmgrlStatements = useMemo(() => {
     return Object.entries(allConnections).map(([sourceId, edgesForSource]) => {
       const source = nodes.find(n => n.id === sourceId);
@@ -343,7 +347,7 @@ function App() {
       // Sort chains by the lowest priority in the chain
       chains.sort((a, b) => Math.min(...a.map(r => r.data.priority)) - Math.min(...b.map(r => r.data.priority)));
 
-      // Group by whenPrimaryIs
+      // Group edges by whenPrimaryIs: each primary scenario may have different routes for this source
       const groupedByWp = {};
       edgesForSource.forEach(edge => {
         const wp = edge.data.whenPrimaryIs;
@@ -352,15 +356,16 @@ function App() {
       });
 
       const routesStr = Object.entries(groupedByWp).map(([wp, edges]) => {
-        // Group routes into chains for this wp
+        // Within this primary scenario, group routes into chains where alternates are linked
+        // A chain starts with a priority=1 route and includes routes that have alternateTo set to its target
         const chains = [];
         const used = new Set();
 
-        // First, find all priority=1 routes as chain starters
+        // Identify chains: start with each unused priority=1 route
         edges.filter(r => r.data.priority === 1 && !used.has(r.id)).forEach(start => {
           const chain = [start];
           used.add(start.id);
-          // Find alternates
+          // Collect alternates: routes where alternateTo matches this chain's starting target
           edges.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id)).forEach(alt => {
             chain.push(alt);
             used.add(alt.id);
@@ -368,12 +373,12 @@ function App() {
           chains.push(chain);
         });
 
-        // Add remaining routes as single-item chains
+        // Collect orphaned routes (priority >1 without valid alternateTo) as single-item chains
         edges.filter(r => !used.has(r.id)).forEach(r => {
           chains.push([r]);
         });
 
-        // Sort chains by the lowest priority in the chain
+        // Sort chains by minimum priority (highest priority chains first)
         chains.sort((a, b) => Math.min(...a.map(r => r.data.priority)) - Math.min(...b.map(r => r.data.priority)));
 
         // Generate the routes string for this wp
@@ -390,10 +395,12 @@ function App() {
         return `(${wp}: ${innerStr})`;
       }).join('');
 
+      // Determine the database type for the DGMGRL command
       const type = source.data.type === 'DATABASE' ? 'DATABASE' :
                    source.data.type === 'FAR_SYNC' ? 'FAR_SYNC' : 'RECOVERY_APPLIANCE';
+      // Final statement: EDIT TYPE DB_NAME SET PROPERTY RedoRoutes = 'routesStr';
       return `EDIT ${type} ${source.data.dbUniqueName} SET PROPERTY RedoRoutes = '${routesStr}';`;
-    }).filter(s => s).join('\n');
+    }).filter(s => s).join('\n'); // Join statements for different sources with newlines
   }, [allConnections, nodes]);
 
   return (
