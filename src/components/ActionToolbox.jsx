@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ActionToolbox = ({ onAddStandby, onAddFarSync, onAddRecoveryAppliance, onMakePrimary, selectedIsStandby, onExport, onImport, onClearAll, style }) => {
+const ActionToolbox = ({ onAddStandby, onAddFarSync, onAddRecoveryAppliance, onMakePrimary, selectedIsStandby, onExport, onImport, onClearAll, onShowRedoRoutes, style }) => {
   const handleImport = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -29,6 +29,7 @@ const ActionToolbox = ({ onAddStandby, onAddFarSync, onAddRecoveryAppliance, onM
       <button onClick={onMakePrimary} disabled={!selectedIsStandby}>Make Primary</button>
       <button onClick={onExport}>Export JSON</button>
       <input type="file" accept=".json" onChange={handleImport} />
+      <button onClick={onShowRedoRoutes}>Show RedoRoutes</button>
       <button onClick={onClearAll}>Clear all</button>
     </div>
   );

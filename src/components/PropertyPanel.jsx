@@ -1,6 +1,6 @@
 import React from 'react';
 
-const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge, style }) => {
+const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge, edges, nodes, style }) => {
   const defaultStyle = { width: '200px', padding: '10px', border: '1px solid var(--redwood-black)' };
   const combinedStyle = { ...defaultStyle, ...style };
 
@@ -25,7 +25,11 @@ const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge,
   }
 
   if (selectedEdge) {
-    const { logXptMode, priority, whenPrimaryIs } = selectedEdge.data;
+    const { logXptMode, priority, whenPrimaryIs, alternateTo, targetDbUniqueName } = selectedEdge.data;
+    const higherPriorityTargets = edges
+      .filter(e => e.data.whenPrimaryIs === whenPrimaryIs && e.data.priority < priority && e.data.targetDbUniqueName !== targetDbUniqueName)
+      .map(e => e.data.targetDbUniqueName)
+      .filter((v, i, a) => a.indexOf(v) === i); // unique
     return (
       <div style={{ ...combinedStyle, background: 'var(--redwood-white)' }}>
         <h3>Log Archive Dest Properties</h3>
@@ -47,8 +51,23 @@ const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge,
           max="8"
           value={priority}
           onChange={(e) => onUpdateEdge(selectedEdge.id, { priority: parseInt(e.target.value) || 1 })}
-          style={{ width: '100%' }}
+          style={{ width: '100%', marginBottom: '10px' }}
         />
+        {priority > 1 && (
+          <>
+            <label>Alternate To</label>
+            <select
+              value={alternateTo || ''}
+              onChange={(e) => onUpdateEdge(selectedEdge.id, { alternateTo: e.target.value || null })}
+              style={{ width: '100%' }}
+            >
+              <option value="">None</option>
+              {higherPriorityTargets.map(target => (
+                <option key={target} value={target}>{target}</option>
+              ))}
+            </select>
+          </>
+        )}
       </div>
     );
   }

@@ -71,7 +71,16 @@ const getInitialEdges = () => {
   if (saved) {
     try {
       const data = JSON.parse(saved);
-      if (data.edges && Array.isArray(data.edges)) return data.edges;
+      if (data.edges && Array.isArray(data.edges)) {
+        // Normalize edge data: add missing alternateTo
+        return data.edges.map(edge => ({
+          ...edge,
+          data: {
+            ...edge.data,
+            alternateTo: edge.data.alternateTo || null,
+          }
+        }));
+      }
     } catch (err) {
       console.error('Failed to load edges from storage:', err);
     }
@@ -84,6 +93,7 @@ function App() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(getInitialEdges());
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
+  const [showRedoRoutesModal, setShowRedoRoutesModal] = useState(false);
 
   // Save to storage when nodes or edges change
   useEffect(() => {
@@ -117,13 +127,13 @@ function App() {
     }));
   }, [edges, currentPrimary]);
 
-  // Map of source node ID to array of { target, whenPrimaryIs, priority }
+  // Map of source node ID to array of edges
   // we use this to generate DGMGRL statements
   const allConnections = useMemo(() => {
     const conns = {};
     edges.forEach(edge => {
       if (!conns[edge.source]) conns[edge.source] = [];
-      conns[edge.source].push({ target: edge.target, whenPrimaryIs: edge.data.whenPrimaryIs, priority: edge.data.priority });
+      conns[edge.source].push(edge);
     });
     return conns;
   }, [edges]);
@@ -191,7 +201,7 @@ function App() {
       // we assign a unique ID to prevent conflicts
       id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: 'lad',
-      data: { logXptMode: 'ASYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName },
+      data: { logXptMode: 'ASYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName, alternateTo: null },
     };
     console.log('New edge:', newEdge);
       setEdges((eds) => [...eds, newEdge]);
@@ -279,8 +289,15 @@ function App() {
   }, [nodes, edges]);
 
   const onImport = useCallback((data) => {
+    const normalizedEdges = (data.edges || []).map(edge => ({
+      ...edge,
+      data: {
+        ...edge.data,
+        alternateTo: edge.data.alternateTo || null,
+      }
+    }));
     setNodes(data.nodes || []);
-    setEdges(data.edges || []);
+    setEdges(normalizedEdges);
   }, [setNodes, setEdges]);
 
   const onClearAll = useCallback(() => {
@@ -291,17 +308,91 @@ function App() {
     deleteStorage('adgTopologyData');
   }, []);
 
+  const onShowRedoRoutes = useCallback(() => {
+    setShowRedoRoutesModal(true);
+  }, []);
+
   const dgmgrlStatements = useMemo(() => {
-    return Object.entries(allConnections).map(([sourceId, conns]) => {
+    return Object.entries(allConnections).map(([sourceId, edgesForSource]) => {
       const source = nodes.find(n => n.id === sourceId);
-      if (!source) return '';
-      const routes = conns.map(c => {
-        const target = nodes.find(n => n.id === c.target);
-        return `(${c.whenPrimaryIs}: ${target?.data.dbUniqueName || 'UNKNOWN'} PRIORITY=${c.priority})`;
-      }).join(' ');
+      if (!source || edgesForSource.length === 0) return '';
+
+      const whenPrimaryIs = edgesForSource[0].data.whenPrimaryIs;
+
+      // Group routes into chains
+      const chains = [];
+      const used = new Set();
+
+      // First, find all priority=1 routes as chain starters
+      edgesForSource.filter(r => r.data.priority === 1 && !used.has(r.id)).forEach(start => {
+        const chain = [start];
+        used.add(start.id);
+        // Find alternates
+        edgesForSource.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id)).forEach(alt => {
+          chain.push(alt);
+          used.add(alt.id);
+        });
+        chains.push(chain);
+      });
+
+      // Add remaining routes as single-item chains
+      edgesForSource.filter(r => !used.has(r.id)).forEach(r => {
+        chains.push([r]);
+      });
+
+      // Sort chains by the lowest priority in the chain
+      chains.sort((a, b) => Math.min(...a.map(r => r.data.priority)) - Math.min(...b.map(r => r.data.priority)));
+
+      // Group by whenPrimaryIs
+      const groupedByWp = {};
+      edgesForSource.forEach(edge => {
+        const wp = edge.data.whenPrimaryIs;
+        if (!groupedByWp[wp]) groupedByWp[wp] = [];
+        groupedByWp[wp].push(edge);
+      });
+
+      const routesStr = Object.entries(groupedByWp).map(([wp, edges]) => {
+        // Group routes into chains for this wp
+        const chains = [];
+        const used = new Set();
+
+        // First, find all priority=1 routes as chain starters
+        edges.filter(r => r.data.priority === 1 && !used.has(r.id)).forEach(start => {
+          const chain = [start];
+          used.add(start.id);
+          // Find alternates
+          edges.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id)).forEach(alt => {
+            chain.push(alt);
+            used.add(alt.id);
+          });
+          chains.push(chain);
+        });
+
+        // Add remaining routes as single-item chains
+        edges.filter(r => !used.has(r.id)).forEach(r => {
+          chains.push([r]);
+        });
+
+        // Sort chains by the lowest priority in the chain
+        chains.sort((a, b) => Math.min(...a.map(r => r.data.priority)) - Math.min(...b.map(r => r.data.priority)));
+
+        // Generate the routes string for this wp
+        const innerStr = chains.map(chain => {
+          if (chain.length === 1) {
+            const r = chain[0];
+            return `(${r.data.targetDbUniqueName} PRIORITY=${r.data.priority})`;
+          } else {
+            const sortedChain = chain.sort((a, b) => a.data.priority - b.data.priority);
+            const parts = sortedChain.map(r => `${r.data.targetDbUniqueName} PRIORITY=${r.data.priority}`).join(', ');
+            return `(${parts})`;
+          }
+        }).join(' ');
+        return `(${wp}: ${innerStr})`;
+      }).join('');
+
       const type = source.data.type === 'DATABASE' ? 'DATABASE' :
                    source.data.type === 'FAR_SYNC' ? 'FAR_SYNC' : 'RECOVERY_APPLIANCE';
-      return `EDIT ${type} ${source.data.dbUniqueName} SET PROPERTY RedoRoutes = '${routes}';`;
+      return `EDIT ${type} ${source.data.dbUniqueName} SET PROPERTY RedoRoutes = '${routesStr}';`;
     }).filter(s => s).join('\n');
   }, [allConnections, nodes]);
 
@@ -316,9 +407,11 @@ function App() {
         onExport={onExport}
         onImport={onImport}
         onClearAll={onClearAll}
+        onShowRedoRoutes={onShowRedoRoutes}
         style={{ width: '100%', height: '60px', borderBottom: '1px solid var(--redwood-black)' }}
       />
-      <div style={{ width: '100vw', height: '100vh' , position: 'relative' }}>
+      <div style={{ display: 'flex', flexDirection: 'row', height: 'calc(100vh - 60px)' }}>
+        <div style={{ flex: 1, position: 'relative' }}>
           <ReactFlow
             nodes={nodesWithWarnings}
             edges={visibleEdges}
@@ -337,26 +430,46 @@ function App() {
             <Controls />
             <Background variant="dots" gap={12} size={1} />
           </ReactFlow>
+        </div>
+        <PropertyPanel
+          selectedNode={selectedNode}
+          selectedEdge={selectedEdge}
+          onUpdateNode={onUpdateNode}
+          onUpdateEdge={onUpdateEdge}
+          edges={edges}
+          nodes={nodes}
+          style={{ width: '300px', height: '100%', borderLeft: '1px solid var(--redwood-black)' }}
+        />
       </div>
-      <PropertyPanel
-        selectedNode={selectedNode}
-        selectedEdge={selectedEdge}
-        onUpdateNode={onUpdateNode}
-        onUpdateEdge={onUpdateEdge}
-        style={{ width: '100%', height: '200px', borderTop: '1px solid var(--redwood-black)', borderRight: 'none', borderLeft: 'none' }}
-      />
-      <div style={{
-        height: '150px',
-        background: 'var(--redwood-white)',
-        borderTop: '1px solid var(--redwood-black)',
-        padding: '10px',
-        overflowY: 'auto',
-        fontFamily: 'monospace',
-        fontSize: '12px'
-      }}>
-        <h4>DGMGRL Statements:</h4>
-        <pre>{dgmgrlStatements}</pre>
-      </div>
+      {showRedoRoutesModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'var(--redwood-white)',
+            padding: '20px',
+            borderRadius: '8px',
+            maxWidth: '80vw',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            fontFamily: 'monospace',
+            fontSize: '12px'
+          }}>
+            <h3>DGMGRL Statements</h3>
+            <pre>{dgmgrlStatements}</pre>
+            <button onClick={() => setShowRedoRoutesModal(false)}>Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
