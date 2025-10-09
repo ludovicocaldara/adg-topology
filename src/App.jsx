@@ -97,7 +97,25 @@ function App() {
   const selectedIsStandby = selectedNode && selectedNode.data.role === 'PHYSICAL_STANDBY';
 
   // return only edges relevant to the current primary vor visualization
-  const visibleEdges = useMemo(() => edges.filter(e => e.data.whenPrimaryIs === currentPrimary?.data.dbUniqueName), [edges, currentPrimary]);
+  const visibleEdges = useMemo(() => {
+    const filtered = edges.filter(e => e.data.whenPrimaryIs === currentPrimary?.data.dbUniqueName);
+    // Determine effective edges: for each target, the edges with the minimum priority are effective
+    const targetMinPriorities = {};
+    filtered.forEach(edge => {
+      if (!targetMinPriorities[edge.target]) {
+        targetMinPriorities[edge.target] = edge.data.priority;
+      } else {
+        targetMinPriorities[edge.target] = Math.min(targetMinPriorities[edge.target], edge.data.priority);
+      }
+    });
+    return filtered.map(edge => ({
+      ...edge,
+      data: {
+        ...edge.data,
+        isEffective: edge.data.priority === targetMinPriorities[edge.target]
+      }
+    }));
+  }, [edges, currentPrimary]);
 
   // Map of source node ID to array of { target, whenPrimaryIs, priority }
   // we use this to generate DGMGRL statements
@@ -117,11 +135,12 @@ function App() {
   const nodesWithWarnings = useMemo(() => {
     return nodes.map(node => {
       const incoming = visibleEdges.filter(e => e.target === node.id);
+      const effectiveIncoming = incoming.filter(e => e.data.isEffective);
       let warning = '';
       if (node.data.role === 'PHYSICAL_STANDBY' || node.data.type === 'FAR_SYNC' || node.data.type === 'RECOVERY_APPLIANCE') {
-        if (incoming.length === 0) {
+        if (effectiveIncoming.length === 0) {
           warning = 'does not receive redo';
-        } else if (incoming.length > 1) {
+        } else if (effectiveIncoming.length > 1) {
           warning = 'cannot receive from multiple sources';
         }
       }

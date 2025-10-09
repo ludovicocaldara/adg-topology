@@ -11,7 +11,7 @@ const LadEdge = ({
   targetPosition,
   data,
 }) => {
-  const { whenPrimaryIs, logXptMode, priority, targetDbUniqueName } = data;
+  const { whenPrimaryIs, logXptMode, priority, targetDbUniqueName, isEffective } = data;
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -23,7 +23,13 @@ const LadEdge = ({
 
   return (
     <>
-      <BaseEdge path={edgePath} markerEnd={{ type: MarkerType.ArrowClosed, color: 'var(--redwood-black)' }} />
+      <BaseEdge
+        path={edgePath}
+        markerEnd={{ type: MarkerType.ArrowClosed, color: 'var(--redwood-black)' }}
+        style={{
+          strokeDasharray: isEffective ? 'none' : '5,5',
+        }}
+      />
       <EdgeLabelRenderer>
         <div
           style={{
