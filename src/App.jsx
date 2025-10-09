@@ -1,12 +1,10 @@
 import { useCallback, useState, useMemo, useEffect } from 'react';
 import {
   ReactFlow,
-  MiniMap,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
-  addEdge,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -162,7 +160,7 @@ function App() {
       console.log('Connecting:', params);
       const currentPrimary = nodes.find(n => n.data.role === 'PRIMARY');
       const targetNode = nodes.find(n => n.id === params.target);
-      // Prevent self-connections and connections
+      // Prevent self-connections
       if (params.source === params.target) return;
       const sourceNode = nodes.find(n => n.id === params.source);
       // Prevent connections from recovery appliance
@@ -171,6 +169,7 @@ function App() {
       if (targetNode.data.role === 'PRIMARY') return;
     const newEdge = {
       ...params,
+      // we assign a unique ID to prevent conflicts
       id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       type: 'lad',
       data: { logXptMode: 'ASYNC', priority: 1, whenPrimaryIs: currentPrimary.data.dbUniqueName, targetDbUniqueName: targetNode?.data.dbUniqueName },
@@ -205,9 +204,10 @@ function App() {
       id: newId,
       type: 'database',
       position: { x: Math.random() * 400 + 200, y: Math.random() * 200 + 100 },
-      data: { dbUniqueName: `STANDBY_${newId.slice(-4)}`, role: 'PHYSICAL_STANDBY', type: 'DATABASE' },
+      data: { dbUniqueName: `ORCL_${newId.slice(-4)}`, role: 'PHYSICAL_STANDBY', type: 'DATABASE' },
     };
     setNodes(nds => [...nds, newNode]);
+    /* This would automatically link the new standby to primary, but we want user to do it manually
     const newEdge = {
       id: `e${primary.id}-${newId}`,
       source: primary.id,
@@ -216,6 +216,7 @@ function App() {
       data: { logXptMode: 'SYNC', priority: 1, whenPrimaryIs: primary.data.dbUniqueName, targetDbUniqueName: newNode.data.dbUniqueName },
     };
     setEdges(eds => [...eds, newEdge]);
+    */
   }, [nodes, setNodes, setEdges]);
 
   const onAddFarSync = useCallback(() => {
@@ -224,7 +225,7 @@ function App() {
       id: newId,
       type: 'database',
       position: { x: Math.random() * 400 + 200, y: Math.random() * 200 + 100 },
-      data: { dbUniqueName: `FAR_SYNC_${newId.slice(-4)}`, type: 'FAR_SYNC' },
+      data: { dbUniqueName: `FARSYNC_${newId.slice(-4)}`, type: 'FAR_SYNC' },
     };
     setNodes(nds => [...nds, newNode]);
   }, [setNodes]);
@@ -235,7 +236,7 @@ function App() {
       id: newId,
       type: 'database',
       position: { x: Math.random() * 400 + 200, y: Math.random() * 200 + 100 },
-      data: { dbUniqueName: `RECOVERY_APPLIANCE_${newId.slice(-4)}`, type: 'RECOVERY_APPLIANCE' },
+      data: { dbUniqueName: `ZDLRA_${newId.slice(-4)}`, type: 'RECOVERY_APPLIANCE' },
     };
     setNodes(nds => [...nds, newNode]);
   }, [setNodes]);
