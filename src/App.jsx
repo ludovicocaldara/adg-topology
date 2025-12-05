@@ -326,7 +326,6 @@ function App() {
       // Group routes into chains
       const chains = [];
       const used = new Set();
-
       // First, find all priority=1 routes as chain starters
       edgesForSource.filter(r => r.data.priority === 1 && !used.has(r.id)).forEach(start => {
         const chain = [start];
@@ -385,13 +384,13 @@ function App() {
         const innerStr = chains.map(chain => {
           if (chain.length === 1) {
             const r = chain[0];
-            return `(${r.data.targetDbUniqueName} PRIORITY=${r.data.priority})`;
+            return `${r.data.targetDbUniqueName} ${r.data.logXptMode}`;
           } else {
             const sortedChain = chain.sort((a, b) => a.data.priority - b.data.priority);
-            const parts = sortedChain.map(r => `${r.data.targetDbUniqueName} PRIORITY=${r.data.priority}`).join(', ');
+            const parts = sortedChain.map(r => `${r.data.targetDbUniqueName} ${r.data.logXptMode} PRIORITY=${r.data.priority}`).join(', ');
             return `(${parts})`;
           }
-        }).join(' ');
+        }).join(', ');
         return `(${wp}: ${innerStr})`;
       }).join('');
 
@@ -404,80 +403,93 @@ function App() {
   }, [allConnections, nodes]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <ActionToolbox
-        onAddStandby={onAddStandby}
-        onAddFarSync={onAddFarSync}
-        onAddRecoveryAppliance={onAddRecoveryAppliance}
-        onMakePrimary={onMakePrimary}
-        selectedIsStandby={selectedIsStandby}
-        onExport={onExport}
-        onImport={onImport}
-        onClearAll={onClearAll}
-        onShowRedoRoutes={onShowRedoRoutes}
-        style={{ width: '100%', height: '60px', borderBottom: '1px solid var(--redwood-black)' }}
-      />
-      <div style={{ display: 'flex', flexDirection: 'row', height: 'calc(100vh - 60px)' }}>
-        <div style={{ flex: 1, position: 'relative' }}>
-          <ReactFlow
-            nodes={nodesWithWarnings}
-            edges={visibleEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onNodesDelete={onNodesDelete}
-            onEdgesDelete={onEdgesDelete}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            connectionMode="loose"
-            fitView
-          >
-            <Controls />
-            <Background variant="dots" gap={12} size={1} />
-          </ReactFlow>
-        </div>
-        <PropertyPanel
-          selectedNode={selectedNode}
-          selectedEdge={selectedEdge}
-          onUpdateNode={onUpdateNode}
-          onUpdateEdge={onUpdateEdge}
-          edges={edges}
-          nodes={nodes}
-          style={{ width: '300px', height: '100%', borderLeft: '1px solid var(--redwood-black)' }}
-        />
-      </div>
-      {showRedoRoutesModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000
-        }}>
-          <div style={{
-            background: 'var(--redwood-white)',
-            padding: '20px',
-            borderRadius: '8px',
-            maxWidth: '80vw',
-            maxHeight: '80vh',
-            overflowY: 'auto',
-            fontFamily: 'monospace',
-            fontSize: '12px'
-          }}>
-            <h3>DGMGRL Statements</h3>
-            <pre>{dgmgrlStatements}</pre>
-            <button onClick={() => setShowRedoRoutesModal(false)}>Close</button>
-          </div>
-        </div>
-      )}
+    <><h1>Oracle Active Data Guard RedoRoutes Helper</h1>
+    This 100% frontend application helps you design Data Guard topologies and generate the necessary DGMGRL statements to configure RedoRoutes for optimal redo transport.<br/>
+    <h2>How to use:</h2>
+    <div>
+    1. Start by adding standby databases, far syncs, and recovery appliances using the toolbox above.<br/>
+    2. <b>Important</b>: Click on every database (or Far Sync or ZDLRA) and set their DB_UNIQUE_NAME to match your environment. It will not be possible to change it later!<br/>
+    3. Drop the topology by connecting the databases to each other using mouse drag-and-drop. Start from one of the green dots (source) and connect to a database's black dots (target).<br/>
+    4. Click on edges (connections) to set properties like LogXptMode, Priority, and Alternate To (this is required when the source has multiple destinations and you need to specify to which of those the current one is alternate).<br/>
+    5. Once you complete the topology for one primary database, switch the primary by selecting a standby and clicking "Make Primary" in the toolbox. The visualization will update to show the redo routes for the new primary.<br/>
+    6. Once every topology for every potential primary database is complete, click "Show RedoRoutes" to generate the DGMGRL statements needed to configure redo transport routes.<br/>
+    7. You can export your topology to a JSON file for later use with this application, or import an existing topology.<br/>
+    8. Clear all to start fresh anytime.<br/>
+    9. Note: This tool runs entirely in your browser; no data is sent to any server. Data is persisted only in your browser. Clearing the cookies will reset your configuration.<br/>
+    10. Enjoy designing your Data Guard topologies with ease! Ideas or issues? Feel free to create issues or pull requests on the GitHub repository: <a href="https://github.com/ludovicocaldara/adg-topology">https://github.com/ludovicocaldara/adg-topology</a><br/>
     </div>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100vw', height: '100vh' }}>
+        <ActionToolbox
+          onAddStandby={onAddStandby}
+          onAddFarSync={onAddFarSync}
+          onAddRecoveryAppliance={onAddRecoveryAppliance}
+          onMakePrimary={onMakePrimary}
+          selectedIsStandby={selectedIsStandby}
+          onExport={onExport}
+          onImport={onImport}
+          onClearAll={onClearAll}
+          onShowRedoRoutes={onShowRedoRoutes}
+          style={{ width: '100%', height: '60px', borderBottom: '1px solid var(--redwood-black)' }} />
+        <div style={{ display: 'flex', flexDirection: 'row', height: 'calc(100vh - 60px)' }}>
+          <div style={{ flex: 1, position: 'relative' }}>
+            <ReactFlow
+              nodes={nodesWithWarnings}
+              edges={visibleEdges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
+              onNodesDelete={onNodesDelete}
+              onEdgesDelete={onEdgesDelete}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              connectionMode="loose"
+              fitView
+            >
+              <Controls />
+              <Background variant="dots" gap={12} size={1} />
+            </ReactFlow>
+          </div>
+          <PropertyPanel
+            selectedNode={selectedNode}
+            selectedEdge={selectedEdge}
+            onUpdateNode={onUpdateNode}
+            onUpdateEdge={onUpdateEdge}
+            edges={edges}
+            nodes={nodes}
+            style={{ width: '20%', height: '100%', borderLeft: '1px solid var(--redwood-black)' }} />
+        </div>
+        {showRedoRoutesModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              background: 'var(--redwood-white)',
+              padding: '20px',
+              borderRadius: '8px',
+              maxWidth: '80vw',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              fontFamily: 'monospace',
+              fontSize: '12px'
+            }}>
+              <h3>DGMGRL Statements</h3>
+              <pre>{dgmgrlStatements}</pre>
+              <button onClick={() => setShowRedoRoutesModal(false)}>Close</button>
+            </div>
+          </div>
+        )}
+      </div></>
   );
 }
 
