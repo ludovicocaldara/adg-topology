@@ -2,7 +2,6 @@ import React from 'react';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, MarkerType } from '@xyflow/react';
 
 const LadEdge = ({
-  id,
   sourceX,
   sourceY,
   targetX,

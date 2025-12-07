@@ -246,7 +246,7 @@ function App() {
     };
     setEdges(eds => [...eds, newEdge]);
     */
-  }, [nodes, setNodes, setEdges]);
+  }, [nodes, setNodes]);
 
   const onAddFarSync = useCallback(() => {
     const newId = Date.now().toString();
@@ -306,7 +306,7 @@ function App() {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     deleteStorage('adgTopologyData');
-  }, []);
+  }, [setEdges, setNodes]);
 
   const onShowRedoRoutes = useCallback(() => {
     setShowRedoRoutesModal(true);
@@ -320,8 +320,6 @@ function App() {
     return Object.entries(allConnections).map(([sourceId, edgesForSource]) => {
       const source = nodes.find(n => n.id === sourceId);
       if (!source || edgesForSource.length === 0) return '';
-
-      const whenPrimaryIs = edgesForSource[0].data.whenPrimaryIs;
 
       // Group routes into chains
       const chains = [];
