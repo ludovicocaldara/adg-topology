@@ -328,8 +328,8 @@ function App() {
       edgesForSource.filter(r => r.data.priority === 1 && !used.has(r.id)).forEach(start => {
         const chain = [start];
         used.add(start.id);
-        // Find alternates
-        edgesForSource.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id)).forEach(alt => {
+        // Find alternates (only consider alternates with priority > 1)
+        edgesForSource.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id) && r.data.priority > 1).forEach(alt => {
           chain.push(alt);
           used.add(alt.id);
         });
@@ -362,8 +362,8 @@ function App() {
         edges.filter(r => r.data.priority === 1 && !used.has(r.id)).forEach(start => {
           const chain = [start];
           used.add(start.id);
-          // Collect alternates: routes where alternateTo matches this chain's starting target
-          edges.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id)).forEach(alt => {
+          // Collect alternates: routes where alternateTo matches this chain's starting target (only if alternate has priority > 1)
+          edges.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id) && r.data.priority > 1).forEach(alt => {
             chain.push(alt);
             used.add(alt.id);
           });
