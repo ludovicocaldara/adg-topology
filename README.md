@@ -40,9 +40,18 @@ The Active Data Guard RedoRoutes Helper lets you:
 9. Note: This tool runs entirely in your browser; no data is sent to any server. Data is persisted only in your browser. Clearing the cookies will reset your configuration.  
 10. Enjoy designing your Data Guard topologies with ease! Ideas or issues? Feel free to create issues or pull requests on the [GitHub repository](https://github.com/ludovicocaldara/adg-topology)
 
-*For detailed build and run instructions, see the accompanying **BUILD.md** file.*
+## Limitations
+
+The application does not do many sanity checks. For example:
+
+- It does not check when SYNC/ASYNC make sense. E.g. cascaded SYNC destination are not possible in Active Data Guard.
+- It does not check for loops in the topology.
+
+Users should know how Active Data Guard work and only create topologies that make sense. The only real validation occurs through setting the RedoRoutes in a real Active Data Guard environment.
 
 ---
+
+*For detailed build and run instructions, see the accompanying **BUILD.md** file.*
 
 ## 🚀 Getting Started on your laptop (see `BUILD.md` for full local‑run instructions)
 
@@ -94,3 +103,9 @@ src/
 public/
  └─ index.html           # HTML template
 ```
+
+---
+
+## License
+
+This project is released under the MIT license. See [LICENSE.txt](LICENSE.txt) for license text and copyright notice.
