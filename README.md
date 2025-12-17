@@ -1,6 +1,8 @@
 # Oracle Active Data Guard RedoRoutes Helper
 
-A **frontend‑only** application for designing Oracle Active Data Guard redo topologies visually using React Flow.
+A 70% "vibe-coded" **frontend‑only** application for designing Oracle Active Data Guard redo topologies visually using React Flow.
+
+You can directly try the static build on my personal site: [https://www.ludovicocaldara.net/adg-topology/](https://www.ludovicocaldara.net/adg-topology/)
 
 ![Draw Active Data Guard Topologies](doc/adg-topology.png)
 ![Get Active Data Guard RedoRoutes generated automatically](doc/adg-redoroutes.png)
@@ -40,14 +42,27 @@ The Active Data Guard RedoRoutes Helper lets you:
 9. Note: This tool runs entirely in your browser; no data is sent to any server. Data is persisted only in your browser. Clearing the cookies will reset your configuration.  
 10. Enjoy designing your Data Guard topologies with ease! Ideas or issues? Feel free to create issues or pull requests on the [GitHub repository](https://github.com/ludovicocaldara/adg-topology)
 
+## Embedded checks
+
+The application does a few sanity checks and raises warnings or disable buttons accordingly:
+
+- No more than 10 SYNC or FASTSYNC destinations.
+- Only ASYNC cascaded destinations.
+- No loops.
+- No more than 30 destinations from the same source.
+- No more than 127 total members in the configuration.
+- All database members should receive redo.
+- No members can receive from two sources.
+
+However, the resulting RedoRoutes do not have the same level of validation as the real Active Data Guard.
+
 ## Limitations
 
-The application does not do many sanity checks. For example:
+- Once connections are created from one database to another, changing the DB_UNIQUE_NAME of either databases will mess up the RedoRoutes configuration. If you need to do so, export the JSON, replace the DB_UNIQUE_NAME everywhere in the JSON file, and import it again.
 
-- It does not check when SYNC/ASYNC make sense. E.g. cascaded SYNC destination are not possible in Active Data Guard.
-- It does not check for loops in the topology.
+- Users should know how Active Data Guard works, and only create topologies that make sense. Although there are checks in the application, the only real validation occurs through setting the RedoRoutes in a real Active Data Guard environment.
 
-Users should know how Active Data Guard work and only create topologies that make sense. The only real validation occurs through setting the RedoRoutes in a real Active Data Guard environment.
+- The application is *not* supported by Oracle. It's a personal project and as such, I maintain it on GitHub. You can open issues, but I'd be happy to rather see pull requests :-)
 
 ---
 

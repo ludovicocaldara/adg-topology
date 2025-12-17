@@ -40,9 +40,19 @@ const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge,
           onChange={(e) => onUpdateEdge(selectedEdge.id, { logXptMode: e.target.value })}
           style={{ width: '100%', marginBottom: '10px' }}
         >
-          <option value="SYNC">SYNC</option>
-          <option value="ASYNC">ASYNC</option>
-          <option value="FASTSYNC">FASTSYNC</option>
+          {(() => {
+            const sourceEdge = edges.find(e => e.id === selectedEdge.id);
+            const sourceNode = nodes.find(n => n.id === sourceEdge?.source);
+            const isPrimarySource = sourceNode?.data.role === 'PRIMARY';
+            const options = [
+              ...(isPrimarySource ? [{ value: 'SYNC', label: 'SYNC' }] : []),
+              ...(isPrimarySource ? [{ value: 'FASTSYNC', label: 'FASTSYNC' }] : []),
+              { value: 'ASYNC', label: 'ASYNC' },
+            ];
+            return options.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ));
+          })()}
         </select>
         <label>Priority</label>
         <input

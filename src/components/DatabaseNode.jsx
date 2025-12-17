@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { getEdgeCenter, Handle, Position } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
 
 const DatabaseNode = ({ data, selected }) => {
   const { dbUniqueName, role, type, warning } = data;
@@ -24,7 +24,7 @@ const DatabaseNode = ({ data, selected }) => {
       <div style={{ fontSize: '10px', marginBottom: '5px' }}>Type: {type}</div>
       {type == "DATABASE" && <div style={{ fontSize: '10px', marginBottom: '5px' }}>Role: {role}</div>}
       <div>{dbUniqueName}</div>
-      {warning && <div style={{ color: 'red', fontSize: '10px', marginTop: '5px' }}>{warning}</div>}
+      {warning && <div style={{ color: 'yellow', fontSize: '10px', marginTop: '5px' }}>WARNING: {warning}</div>}
       <Handle type="source" position={Position.Right} id='rs' style={{ top: 'calc(50% - 5px)', background: 'green'}} isConnectable={true} />
       <Handle type="target" position={Position.Right} id='rt' style={{ top: 'calc(50% + 5px)' }} isConnectableStart={false} isConnectable={true} />
       <Handle type="source" position={Position.Left} id='ls' style={{ top: 'calc(50% + 5px)', background: 'green' }} isConnectable={true} />
