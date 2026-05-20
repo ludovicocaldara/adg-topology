@@ -10,7 +10,7 @@ const LadEdge = ({
   targetPosition,
   data,
 }) => {
-  const { whenPrimaryIs, logXptMode, priority, targetDbUniqueName, isEffective } = data;
+  const { whenPrimaryName, logXptMode, priority, targetDbUniqueName, isEffective } = data;
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -43,7 +43,7 @@ const LadEdge = ({
           }}
           className="nodrag nopan"
         >
-          {whenPrimaryIs}: {targetDbUniqueName} {logXptMode} P{priority}
+          {whenPrimaryName}: {targetDbUniqueName} {logXptMode} P{priority}
         </div>
       </EdgeLabelRenderer>
     </>

@@ -1,9 +1,9 @@
 const groupEdgesByPrimary = (edgesForSource) => {
   const groupedByPrimary = {};
   edgesForSource.forEach(edge => {
-    const whenPrimaryIs = edge.data.whenPrimaryIs;
-    if (!groupedByPrimary[whenPrimaryIs]) groupedByPrimary[whenPrimaryIs] = [];
-    groupedByPrimary[whenPrimaryIs].push(edge);
+    const whenPrimaryNodeId = edge.data.whenPrimaryNodeId;
+    if (!groupedByPrimary[whenPrimaryNodeId]) groupedByPrimary[whenPrimaryNodeId] = [];
+    groupedByPrimary[whenPrimaryNodeId].push(edge);
   });
   return groupedByPrimary;
 };
@@ -16,7 +16,7 @@ const buildRouteChains = (edges) => {
     const chain = [start];
     used.add(start.id);
 
-    edges.filter(r => r.data.alternateTo === start.data.targetDbUniqueName && !used.has(r.id) && r.data.priority > 1).forEach(alt => {
+    edges.filter(r => r.data.alternateToNodeId === start.target && !used.has(r.id) && r.data.priority > 1).forEach(alt => {
       chain.push(alt);
       used.add(alt.id);
     });
@@ -31,15 +31,15 @@ const buildRouteChains = (edges) => {
   return chains.sort((a, b) => Math.min(...a.map(r => r.data.priority)) - Math.min(...b.map(r => r.data.priority)));
 };
 
-const formatRouteChain = (chain) => {
+const formatRouteChain = (chain, nodesById) => {
   if (chain.length === 1) {
     const route = chain[0];
-    return `${route.data.targetDbUniqueName} ${route.data.logXptMode}`;
+    return `${nodesById[route.target]?.data.dbUniqueName} ${route.data.logXptMode}`;
   }
 
   const parts = [...chain]
     .sort((a, b) => a.data.priority - b.data.priority)
-    .map(route => `${route.data.targetDbUniqueName} ${route.data.logXptMode} PRIORITY=${route.data.priority}`)
+    .map(route => `${nodesById[route.target]?.data.dbUniqueName} ${route.data.logXptMode} PRIORITY=${route.data.priority}`)
     .join(', ');
 
   return `(${parts})`;
@@ -61,16 +61,20 @@ export const groupConnectionsBySource = (edges) => {
 };
 
 export const generateDgmgrlStatements = (nodes, edges) => {
+  const nodesById = Object.fromEntries(nodes.map(node => [node.id, node]));
   const allConnections = groupConnectionsBySource(edges);
 
   return Object.entries(allConnections).map(([sourceId, edgesForSource]) => {
-    const source = nodes.find(n => n.id === sourceId);
+    const source = nodesById[sourceId];
     if (!source || edgesForSource.length === 0) return '';
 
-    const routesStr = Object.entries(groupEdgesByPrimary(edgesForSource)).map(([whenPrimaryIs, primaryEdges]) => {
-      const innerStr = buildRouteChains(primaryEdges).map(formatRouteChain).join(', ');
+    const routesStr = Object.entries(groupEdgesByPrimary(edgesForSource)).map(([whenPrimaryNodeId, primaryEdges]) => {
+      const whenPrimaryIs = nodesById[whenPrimaryNodeId]?.data.dbUniqueName;
+      if (!whenPrimaryIs) return '';
+
+      const innerStr = buildRouteChains(primaryEdges).map(chain => formatRouteChain(chain, nodesById)).join(', ');
       return `(${whenPrimaryIs}: ${innerStr})`;
-    }).join('');
+    }).filter(Boolean).join('');
 
     return `EDIT ${getBrokerObjectType(source)} ${source.data.dbUniqueName} SET PROPERTY RedoRoutes = '${routesStr}';`;
   }).filter(Boolean).join('\n');

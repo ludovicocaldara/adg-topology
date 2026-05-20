@@ -13,35 +13,26 @@ import { useTopologyWarnings } from './useTopologyWarnings';
 
 const STORAGE_KEY = 'adgTopologyData';
 
-const getInitialNodes = () => {
+const getInitialData = () => {
   const saved = getStorage(STORAGE_KEY);
   if (saved) {
     try {
       const data = JSON.parse(saved);
-      if (data.nodes && Array.isArray(data.nodes)) return data.nodes;
+      const nodes = Array.isArray(data.nodes) ? data.nodes : initialNodes;
+      const edges = Array.isArray(data.edges) ? normalizeEdges(data.edges, nodes) : initialEdges;
+      return { nodes, edges };
     } catch (err) {
-      console.error('Failed to load nodes from storage:', err);
+      console.error('Failed to load topology from storage:', err);
     }
   }
-  return initialNodes;
+  return { nodes: initialNodes, edges: initialEdges };
 };
 
-const getInitialEdges = () => {
-  const saved = getStorage(STORAGE_KEY);
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      if (data.edges && Array.isArray(data.edges)) return normalizeEdges(data.edges);
-    } catch (err) {
-      console.error('Failed to load edges from storage:', err);
-    }
-  }
-  return initialEdges;
-};
+const initialData = getInitialData();
 
 export const useTopologyState = () => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(getInitialNodes());
-  const [edges, setEdges, onEdgesChange] = useEdgesState(getInitialEdges());
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialData.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialData.edges);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState(null);
   const [showRedoRoutesModal, setShowRedoRoutesModal] = useState(false);
@@ -55,7 +46,7 @@ export const useTopologyState = () => {
   const currentPrimary = nodes.find(n => n.data.role === 'PRIMARY');
   const selectedIsStandby = selectedNode && selectedNode.data.role === 'PHYSICAL_STANDBY';
 
-  const visibleEdges = useMemo(() => getVisibleEdges(edges, currentPrimary), [edges, currentPrimary]);
+  const visibleEdges = useMemo(() => getVisibleEdges(edges, currentPrimary, nodes), [edges, currentPrimary, nodes]);
   const nodesWithWarnings = useTopologyWarnings(nodes, visibleEdges);
   const dgmgrlStatements = useMemo(() => generateDgmgrlStatements(nodes, edges), [nodes, edges]);
 
@@ -97,9 +88,8 @@ export const useTopologyState = () => {
         data: {
           logXptMode: 'ASYNC',
           priority: 1,
-          whenPrimaryIs: currentPrimary.data.dbUniqueName,
-          targetDbUniqueName: targetNode?.data.dbUniqueName,
-          alternateTo: null,
+          whenPrimaryNodeId: currentPrimary.id,
+          alternateToNodeId: null,
         },
       };
 
@@ -181,8 +171,9 @@ export const useTopologyState = () => {
   }, [nodes, edges]);
 
   const onImport = useCallback((data) => {
-    setNodes(data.nodes || []);
-    setEdges(normalizeEdges(data.edges || []));
+    const importedNodes = data.nodes || [];
+    setNodes(importedNodes);
+    setEdges(normalizeEdges(data.edges || [], importedNodes));
   }, [setNodes, setEdges]);
 
   const onClearAll = useCallback(() => {

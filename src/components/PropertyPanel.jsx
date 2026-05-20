@@ -25,15 +25,19 @@ const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge,
   }
 
   if (selectedEdge) {
-    const { logXptMode, priority, whenPrimaryIs, alternateTo, targetDbUniqueName } = selectedEdge.data;
+    const nodesById = Object.fromEntries(nodes.map(node => [node.id, node]));
+    const { logXptMode, priority, whenPrimaryNodeId, alternateToNodeId } = selectedEdge.data;
+    const whenPrimaryName = nodesById[whenPrimaryNodeId]?.data.dbUniqueName || 'Unknown';
     const higherPriorityTargets = edges
-      .filter(e => e.data.whenPrimaryIs === whenPrimaryIs && e.data.priority < priority && e.data.targetDbUniqueName !== targetDbUniqueName)
-      .map(e => e.data.targetDbUniqueName)
-      .filter((v, i, a) => a.indexOf(v) === i); // unique
+      .filter(e => e.data.whenPrimaryNodeId === whenPrimaryNodeId && e.data.priority < priority && e.target !== selectedEdge.target)
+      .map(e => e.target)
+      .filter((v, i, a) => a.indexOf(v) === i) // unique
+      .map(nodeId => ({ nodeId, dbUniqueName: nodesById[nodeId]?.data.dbUniqueName }))
+      .filter(target => target.dbUniqueName);
     return (
       <div style={{ ...combinedStyle, background: 'var(--redwood-white)' }}>
         <h3>Log Archive Dest Properties</h3>
-        <p><label style={{ width: '100%', marginBottom: '10px'}} >Valid when Primary is: {whenPrimaryIs}</label></p>
+        <p><label style={{ width: '100%', marginBottom: '10px'}} >Valid when Primary is: {whenPrimaryName}</label></p>
         <label>LogXptMode</label>
         <select
           value={logXptMode}
@@ -67,13 +71,13 @@ const PropertyPanel = ({ selectedNode, selectedEdge, onUpdateNode, onUpdateEdge,
           <>
             <label>Alternate To</label>
             <select
-              value={alternateTo || ''}
-              onChange={(e) => onUpdateEdge(selectedEdge.id, { alternateTo: e.target.value || null })}
+              value={alternateToNodeId || ''}
+              onChange={(e) => onUpdateEdge(selectedEdge.id, { alternateToNodeId: e.target.value || null })}
               style={{ width: '100%' }}
             >
               <option value="">None</option>
               {higherPriorityTargets.map(target => (
-                <option key={target} value={target}>{target}</option>
+                <option key={target.nodeId} value={target.nodeId}>{target.dbUniqueName}</option>
               ))}
             </select>
           </>

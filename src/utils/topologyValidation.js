@@ -1,5 +1,6 @@
-export const getVisibleEdges = (edges, currentPrimary) => {
-  const filtered = edges.filter(e => e.data.whenPrimaryIs === currentPrimary?.data.dbUniqueName);
+export const getVisibleEdges = (edges, currentPrimary, nodes = []) => {
+  const nodesById = Object.fromEntries(nodes.map(node => [node.id, node]));
+  const filtered = edges.filter(e => e.data.whenPrimaryNodeId === currentPrimary?.id);
   const targetMinPriorities = {};
 
   filtered.forEach(edge => {
@@ -15,6 +16,8 @@ export const getVisibleEdges = (edges, currentPrimary) => {
     data: {
       ...edge.data,
       isEffective: edge.data.priority === targetMinPriorities[edge.target],
+      whenPrimaryName: nodesById[edge.data.whenPrimaryNodeId]?.data.dbUniqueName,
+      targetDbUniqueName: nodesById[edge.target]?.data.dbUniqueName,
     },
   }));
 };

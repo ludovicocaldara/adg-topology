@@ -32,7 +32,7 @@ The Active Data Guard RedoRoutes Helper lets you:
 ## 📋 Instructions
 
 1. Start by adding standby databases, far syncs, and recovery appliances using the toolbox above.  
-2. **Important**: Click on every database (or Far Sync or ZDLRA) and set their DB_UNIQUE_NAME to match your environment. It will not be possible to change it later!  
+2. Click on every database (or Far Sync or ZDLRA) and set their DB_UNIQUE_NAME to match your environment. You can still rename members after creating connections; redo routes are generated from the current member names.  
 3. Drop the topology by connecting the databases to each other using mouse drag-and-drop. Start from one of the green dots (source) and connect to a database's black dots (target).  
 4. Click on edges (connections) to set properties like LogXptMode, Priority, and Alternate To (this is required when the source has multiple destinations and you need to specify to which of those the current one is alternate).  
 5. Once you complete the topology for one primary database, switch the primary by selecting a standby and clicking "Make Primary" in the toolbox. The visualization will update to show the redo routes for the new primary.  
@@ -57,8 +57,6 @@ The application does a few sanity checks and raises warnings or disable buttons 
 However, the resulting RedoRoutes do not have the same level of validation as the real Active Data Guard.
 
 ## Limitations
-
-- Once connections are created from one database to another, changing the DB_UNIQUE_NAME of either databases will mess up the RedoRoutes configuration. If you need to do so, export the JSON, replace the DB_UNIQUE_NAME everywhere in the JSON file, and import it again.
 
 - Users should know how Active Data Guard works, and only create topologies that make sense. Although there are checks in the application, the only real validation occurs through setting the RedoRoutes in a real Active Data Guard environment.
 
