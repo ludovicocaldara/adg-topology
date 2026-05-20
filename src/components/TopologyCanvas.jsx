@@ -2,6 +2,7 @@ import {
   ReactFlow,
   Controls,
   Background,
+  ConnectionLineType,
 } from '@xyflow/react';
 
 import DatabaseNode from './DatabaseNode';
@@ -48,6 +49,8 @@ const TopologyCanvas = ({
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           connectionMode="loose"
+          connectionLineType={ConnectionLineType.Straight}
+          connectionLineStyle={{ stroke: 'var(--redwood-black)', strokeWidth: 1.5 }}
           fitView
         >
           <Controls />

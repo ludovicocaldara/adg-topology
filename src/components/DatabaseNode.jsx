@@ -1,6 +1,13 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 
+const perimeterHandles = [
+  { id: 'top', position: Position.Top },
+  { id: 'right', position: Position.Right },
+  { id: 'bottom', position: Position.Bottom },
+  { id: 'left', position: Position.Left },
+];
+
 const DatabaseNode = ({ data, selected }) => {
   const { dbUniqueName, role, type, warning } = data;
   let bgColor = 'var(--redwood-blue)';
@@ -9,6 +16,7 @@ const DatabaseNode = ({ data, selected }) => {
 
   return (
     <div 
+      className={`database-node ${selected ? 'database-node--selected' : ''}`}
       style={{
         padding: '15px',
         borderRadius: '5px',
@@ -25,14 +33,16 @@ const DatabaseNode = ({ data, selected }) => {
       {type == "DATABASE" && <div style={{ fontSize: '10px', marginBottom: '5px' }}>Role: {role}</div>}
       <div>{dbUniqueName}</div>
       {warning && <div style={{ color: 'yellow', fontSize: '10px', marginTop: '5px' }}>WARNING: {warning}</div>}
-      <Handle type="source" position={Position.Right} id='rs' style={{ top: 'calc(50% - 5px)', background: 'green'}} isConnectable={true} />
-      <Handle type="target" position={Position.Right} id='rt' style={{ top: 'calc(50% + 5px)' }} isConnectableStart={false} isConnectable={true} />
-      <Handle type="source" position={Position.Left} id='ls' style={{ top: 'calc(50% + 5px)', background: 'green' }} isConnectable={true} />
-      <Handle type="target" position={Position.Left} id='lt' style={{ top: 'calc(50% - 5px)' }} isConnectableStart={false} isConnectable={true} />
-      <Handle type="source" position={Position.Top} id='ts' style={{ left: 'calc(50% - 5px)', background: 'green'}} isConnectable={true} />
-      <Handle type="target" position={Position.Top} id='tt' style={{ left: 'calc(50% + 5px)' }} isConnectableStart={false} isConnectable={true} />
-      <Handle type="source" position={Position.Bottom} id='bs' style={{ left: 'calc(50% + 5px)', background: 'green' }} isConnectable={true} />
-      <Handle type="target" position={Position.Bottom} id='bt' style={{ left: 'calc(50% - 5px)' }} isConnectableStart={false} isConnectable={true} />
+      {perimeterHandles.map(({ id, position }) => (
+        <Handle
+          key={id}
+          type="source"
+          position={position}
+          id={id}
+          className={`database-node__handle database-node__handle--${id}`}
+          isConnectable={true}
+        />
+      ))}
     </div>
   );
 };
