@@ -171,14 +171,14 @@ function App() {
       return loopNodes;
     };
 
-    const loopNodeIds = findLoopNodes(edges);
+    const loopNodeIds = findLoopNodes(visibleEdges);
 
     // Count SYNC edges from the primary
     const primaryNode = nodes.find(n => n.data.role === 'PRIMARY');
-    const syncCount = edges.filter(e => e.source === primaryNode?.id && e.data.logXptMode !== 'ASYNC').length;
+    const syncCount = visibleEdges.filter(e => e.source === primaryNode?.id && e.data.logXptMode !== 'ASYNC').length;
 
     // Count total destinations from the primary
-    const destCount = edges.filter(e => e.source === primaryNode?.id).length;
+    const destCount = visibleEdges.filter(e => e.source === primaryNode?.id).length;
 
     return nodes.map(node => {
       const incoming = visibleEdges.filter(e => e.target === node.id);
@@ -211,7 +211,7 @@ function App() {
 
       return { ...node, data: { ...node.data, warning } };
     });
-  }, [nodes, visibleEdges, edges]);
+  }, [nodes, visibleEdges]);
 
   const onNodeClick = useCallback((event, node) => {
     setSelectedNodeId(node.id);
