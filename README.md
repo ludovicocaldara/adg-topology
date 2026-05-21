@@ -82,6 +82,13 @@ npm run dev
 
 Open `http://localhost:5173` in your browser to start designing.
 
+To build the app for a deployment under a specific URL base path, pass Vite's
+`--base` option. For example, to serve the app from `/adg-topology/`:
+
+```bash
+npm run build -- --base=/adg-topology/
+```
+
 ## 📚 Documentation Links
 
 - **RedoRoutes Property (Oracle Data Guard Broker Concepts Documentation)** –  
