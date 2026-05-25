@@ -50,6 +50,23 @@ export const findLoopNodes = (edgesList) => {
   return loopNodes;
 };
 
+const receivesAsAlternate = (nodeId, visibleEdges, primaryNodeId) => {
+  if (nodeId === primaryNodeId) return false;
+  const incoming = visibleEdges.filter(e => e.target === nodeId && e.data.isEffective);
+  return incoming.length > 0 && incoming.every((edge) => {
+    if (!edge.data.alternateToNodeId) return false;
+
+    const alternateToEdge = visibleEdges.find(e => (
+      e.source === edge.source
+      && e.target === edge.data.alternateToNodeId
+      && e.data.whenPrimaryNodeId === edge.data.whenPrimaryNodeId
+      && e.data.priority < edge.data.priority
+    ));
+
+    return Boolean(alternateToEdge);
+  });
+};
+
 export const addTopologyWarnings = (nodes, visibleEdges) => {
   const loopNodeIds = findLoopNodes(visibleEdges);
   const primaryNode = nodes.find(n => n.data.role === 'PRIMARY');
@@ -64,7 +81,9 @@ export const addTopologyWarnings = (nodes, visibleEdges) => {
     if (node.data.role === 'PHYSICAL_STANDBY' || node.data.type === 'FAR_SYNC' || node.data.type === 'RECOVERY_APPLIANCE') {
       if (effectiveIncoming.length === 0) {
         warning = 'does not receive redo';
-      } else if (effectiveIncoming.length > 1) {
+      } else if (effectiveIncoming.length === 1 && receivesAsAlternate(effectiveIncoming[0].source, visibleEdges, primaryNode?.id)) {
+        warning = 'may not receive redo if source is alternate';
+      } else if (effectiveIncoming.filter(e => !receivesAsAlternate(e.source, visibleEdges, primaryNode?.id)).length > 1) {
         warning = 'cannot receive from multiple sources';
       }
     }
