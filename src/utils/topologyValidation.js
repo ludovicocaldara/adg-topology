@@ -67,22 +67,69 @@ const receivesAsAlternate = (nodeId, visibleEdges, primaryNodeId) => {
   });
 };
 
-const getSourceActivationTiers = (sourceId, visibleEdges, primaryNodeId) => {
-  if (sourceId === primaryNodeId) return ['PRIMARY'];
+const mergeActivationCondition = (condition, edge) => {
+  const available = new Set(condition.available);
+  const unavailable = new Set(condition.unavailable);
 
-  const incoming = visibleEdges.filter(e => e.target === sourceId && e.data.isEffective);
-  if (incoming.length === 0) return [`UNFED:${sourceId}`];
+  available.add(edge.target);
+  if (edge.data.alternateToNodeId) {
+    unavailable.add(edge.data.alternateToNodeId);
+  }
 
-  return incoming.map(e => `PRIORITY:${e.data.priority}`);
+  return { available, unavailable };
+};
+
+const conditionsOverlap = (first, second) => {
+  for (const nodeId of first.available) {
+    if (second.unavailable.has(nodeId)) return false;
+  }
+
+  for (const nodeId of second.available) {
+    if (first.unavailable.has(nodeId)) return false;
+  }
+
+  return true;
+};
+
+const createSourceActivationResolver = (visibleEdges, primaryNodeId) => {
+  const memo = new Map();
+  const visiting = new Set();
+
+  const getSourceActivationConditions = (sourceId) => {
+    if (sourceId === primaryNodeId) {
+      return [{ available: new Set([sourceId]), unavailable: new Set() }];
+    }
+
+    if (memo.has(sourceId)) return memo.get(sourceId);
+    if (visiting.has(sourceId)) return [];
+
+    visiting.add(sourceId);
+
+    const incoming = visibleEdges.filter(e => e.target === sourceId && e.data.isEffective);
+    const conditions = incoming.flatMap(edge => (
+      getSourceActivationConditions(edge.source).map(condition => mergeActivationCondition(condition, edge))
+    ));
+
+    visiting.delete(sourceId);
+    memo.set(sourceId, conditions);
+
+    return conditions;
+  };
+
+  return getSourceActivationConditions;
 };
 
 const hasConcurrentIncomingSources = (incoming, visibleEdges, primaryNodeId) => {
-  const sourceTiers = incoming.map(edge => getSourceActivationTiers(edge.source, visibleEdges, primaryNodeId));
+  const getSourceActivationConditions = createSourceActivationResolver(visibleEdges, primaryNodeId);
+  const incomingConditions = incoming.map(edge => (
+    getSourceActivationConditions(edge.source).map(condition => mergeActivationCondition(condition, edge))
+  ));
 
-  for (let i = 0; i < sourceTiers.length; i += 1) {
-    for (let j = i + 1; j < sourceTiers.length; j += 1) {
-      if (sourceTiers[i].includes('PRIMARY') || sourceTiers[j].includes('PRIMARY')) return true;
-      if (sourceTiers[i].some(tier => sourceTiers[j].includes(tier))) return true;
+  for (let i = 0; i < incomingConditions.length; i += 1) {
+    for (let j = i + 1; j < incomingConditions.length; j += 1) {
+      if (incomingConditions[i].some(first => incomingConditions[j].some(second => conditionsOverlap(first, second)))) {
+        return true;
+      }
     }
   }
 
